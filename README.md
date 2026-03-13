@@ -105,6 +105,7 @@ comfy-sage/
 ├── local-gcc14/
 ├── local-python311/
 ├── .bootstrap-cache/
+│   └── pacman-cache/
 └── launch-comfy.sh
 ```
 
@@ -113,6 +114,7 @@ comfy-sage/
 Optional environment variables:
 
 - `BOOTSTRAP_CACHE_DIR`: where bootstrap archives are cached
+  Default: `./.bootstrap-cache/pacman-cache`
 - `COMFYUI_DIR`: override the local ComfyUI checkout path
 - `COMFYUI_REPO_URL`: override the ComfyUI git remote
 - `COMFYUI_REF`: clone a specific branch or tag

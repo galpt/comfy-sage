@@ -6,7 +6,9 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-BOOTSTRAP_CACHE_DIR="${BOOTSTRAP_CACHE_DIR:-$SCRIPT_DIR/.bootstrap-cache}"
+DEFAULT_BOOTSTRAP_CACHE_ROOT="$SCRIPT_DIR/.bootstrap-cache"
+DEFAULT_BOOTSTRAP_CACHE_DIR="$DEFAULT_BOOTSTRAP_CACHE_ROOT/pacman-cache"
+BOOTSTRAP_CACHE_DIR="${BOOTSTRAP_CACHE_DIR:-$DEFAULT_BOOTSTRAP_CACHE_DIR}"
 COMFYUI_REPO_URL="${COMFYUI_REPO_URL:-https://github.com/comfyanonymous/ComfyUI.git}"
 COMFYUI_DIR="${COMFYUI_DIR:-$SCRIPT_DIR/ComfyUI}"
 COMFYUI_REF="${COMFYUI_REF:-}"
@@ -111,6 +113,21 @@ download_archive() {
     return 1
 }
 
+prepare_bootstrap_cache_dir() {
+    local cache_subdir
+
+    if [ "$BOOTSTRAP_CACHE_DIR" = "$DEFAULT_BOOTSTRAP_CACHE_DIR" ]; then
+        mkdir -p "$DEFAULT_BOOTSTRAP_CACHE_ROOT"
+        cache_subdir="$(basename "$DEFAULT_BOOTSTRAP_CACHE_DIR")"
+        if [ ! -e "$DEFAULT_BOOTSTRAP_CACHE_DIR" ]; then
+            mkdir -p "$DEFAULT_BOOTSTRAP_CACHE_DIR"
+            find "$DEFAULT_BOOTSTRAP_CACHE_ROOT" -mindepth 1 -maxdepth 1 -type f ! -name "$cache_subdir" -exec mv -n {} "$DEFAULT_BOOTSTRAP_CACHE_DIR"/ \;
+        fi
+    fi
+
+    mkdir -p "$BOOTSTRAP_CACHE_DIR"
+}
+
 resolve_cachyos_url() {
     local package="$1"
     local fallback_url="$2"
@@ -198,6 +215,7 @@ bootstrap_local_toolchain() {
     require_bootstrap_command curl
     require_bootstrap_command git
     require_archive_tool
+    prepare_bootstrap_cache_dir
     ensure_local_python311
     ensure_local_gcc14
     ensure_local_cuda131
