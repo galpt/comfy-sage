@@ -176,7 +176,9 @@ ensure_local_gcc14() {
 
 ensure_local_cuda131() {
     local target="$SCRIPT_DIR/local-cuda131"
-    local archive="$BOOTSTRAP_CACHE_DIR/$(basename "${CUDA131_URL%%\?*}")"
+    local archive
+
+    archive="$BOOTSTRAP_CACHE_DIR/$(basename "${CUDA131_URL%%\?*}")"
 
     if [ -x "$target/opt/cuda/bin/nvcc" ]; then
         return 0
