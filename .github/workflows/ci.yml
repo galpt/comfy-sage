@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main, master]
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    name: Validate launcher and packager
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install validation tools
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends shellcheck
+
+      - name: bash -n
+        run: bash -n launch-comfy.sh
+
+      - name: shellcheck
+        run: shellcheck -x launch-comfy.sh
+
+      - name: py_compile
+        run: python3 -m py_compile scripts/release/package_release.py
+
+      - name: Build release zip
+        run: python3 scripts/release/package_release.py --output-dir dist
+
+      - name: Check release outputs
+        run: |
+          VERSION="$(cat VERSION)"
+          test -f "dist/comfy-sage-linux-x86_64-v${VERSION}.zip"
+          test -f "dist/comfy-sage-linux-x86_64-v${VERSION}.zip.sha256"

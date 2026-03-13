@@ -1,0 +1,11 @@
+.bootstrap-cache/
+ComfyUI/
+comfyenv/
+comfyenv311/
+dist/
+local-cuda/
+local-cuda131/
+local-gcc14/
+local-python311/
+__pycache__/
+*.pyc
