@@ -93,13 +93,15 @@ On first run it will:
 4. install or upgrade SageAttention to `2.2.0`
 5. clone ComfyUI into `./ComfyUI`
 6. install ComfyUI requirements
-7. launch ComfyUI
+7. reconcile custom-node `requirements.txt` files under `ComfyUI/custom_nodes/*`
+8. launch ComfyUI
 
 ## Layout after first run
 
 ```text
 comfy-sage/
 ├── ComfyUI/
+├── .custom-node-requirements/
 ├── comfyenv311/
 ├── local-cuda131/
 ├── local-gcc14/
@@ -108,6 +110,61 @@ comfy-sage/
 │   └── pacman-cache/
 └── launch-comfy.sh
 ```
+
+## Custom node integration
+
+`comfy-sage` bootstraps the local ComfyUI + PyTorch runtime. Compatible custom
+nodes can be added directly under `ComfyUI/custom_nodes`.
+
+On every launch, `comfy-sage` scans for custom-node manifests at:
+
+- `ComfyUI/custom_nodes/*/requirements.txt`
+
+When it finds a new or changed manifest, it installs that node's Python
+dependencies into the same local `comfyenv`/`comfyenv311` virtual environment
+before ComfyUI starts. Unchanged manifests are skipped using a local stamp/hash
+cache in `./.custom-node-requirements/`.
+
+If a detected custom-node dependency install fails, the launcher stops before
+starting ComfyUI so the failure is visible.
+
+### comfy-intelliPrompt
+
+Fresh-install flow:
+
+1. Unpack `comfy-sage`
+2. Run `./launch-comfy.sh` once to bootstrap ComfyUI, PyTorch, and the local runtime
+3. Clone `comfy-intelliPrompt` into `ComfyUI/custom_nodes`
+4. Relaunch `./launch-comfy.sh` so custom-node dependencies are reconciled
+
+```bash
+./launch-comfy.sh
+git clone https://github.com/galpt/comfy-intelliPrompt.git ComfyUI/custom_nodes/comfy-intelliPrompt
+./launch-comfy.sh
+```
+
+Already-installed-add-later flow:
+
+1. Start from an existing `comfy-sage` directory that was already bootstrapped earlier
+2. Clone a compatible custom node into `ComfyUI/custom_nodes`
+3. Run `./launch-comfy.sh` again
+
+```bash
+git clone https://github.com/galpt/comfy-intelliPrompt.git ComfyUI/custom_nodes/comfy-intelliPrompt
+./launch-comfy.sh
+```
+
+Practical contract for this integration:
+
+- `comfy-sage` provides the ComfyUI + torch runtime that `comfy-intelliPrompt`
+  expects for normal registration
+- after clone + relaunch, `comfy-sage` installs any new or changed
+  `requirements.txt` dependencies for `comfy-intelliPrompt` into the existing
+  local virtual environment
+- no separate manual `pip install` step is needed for base functionality or
+  local prompt cleanup
+- optional API enrichment is not required for success; if unavailable,
+  `comfy-intelliPrompt` falls back to local processing
 
 ## Configuration knobs
 
@@ -119,6 +176,8 @@ Optional environment variables:
 - `COMFYUI_REPO_URL`: override the ComfyUI git remote
 - `COMFYUI_REF`: clone a specific branch or tag
 - `COMFYUI_SKIP_UPDATE=1`: skip `git pull` on existing ComfyUI checkouts
+- `CUSTOM_NODE_REQUIREMENTS_STAMP_DIR`: override where custom-node requirement
+  manifest hashes are stored
 - `SAGEATTENTION_TARGET_VERSION`: override the preferred SageAttention version
 
 ## Release workflow

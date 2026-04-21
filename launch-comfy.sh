@@ -19,6 +19,7 @@ GCC14_LIBS_FALLBACK_URL="${GCC14_LIBS_FALLBACK_URL:-https://mirror.cachyos.org/r
 CUDA131_URL="${CUDA131_URL:-https://archive.archlinux.org/packages/c/cuda/cuda-13.1.1-1-x86_64.pkg.tar.zst}"
 SAGEATTENTION_TARGET_VERSION="${SAGEATTENTION_TARGET_VERSION:-2.2.0}"
 SAGEATTENTION_FALLBACK_VERSION="${SAGEATTENTION_FALLBACK_VERSION:-1.0.6}"
+CUSTOM_NODE_REQUIREMENTS_STAMP_DIR="${CUSTOM_NODE_REQUIREMENTS_STAMP_DIR:-$SCRIPT_DIR/.custom-node-requirements}"
 
 require_linux_x86_64() {
     if [ "$(uname -s)" != "Linux" ]; then
@@ -314,6 +315,33 @@ sys.exit(0 if parse(sys.argv[1]) >= parse(sys.argv[2]) else 1)
 PYTHON
 }
 
+sha256_file() {
+    python - "$1" <<'PYTHON'
+import hashlib
+import sys
+
+path = sys.argv[1]
+digest = hashlib.sha256()
+
+with open(path, "rb") as fh:
+    for chunk in iter(lambda: fh.read(1024 * 1024), b""):
+        digest.update(chunk)
+
+print(digest.hexdigest())
+PYTHON
+}
+
+custom_node_manifest_stamp_name() {
+    python - "$1" <<'PYTHON'
+import hashlib
+import os
+import sys
+
+manifest = os.path.abspath(sys.argv[1])
+print(hashlib.sha256(manifest.encode("utf-8")).hexdigest())
+PYTHON
+}
+
 install_torch() {
     echo "Attempting to install PyTorch (CUDA enabled) for Python $pyver..."
     python -m pip install --upgrade torch torchvision torchaudio || return 1
@@ -591,6 +619,48 @@ clone_or_update_comfyui
 cd "$COMFYUI_DIR"
 
 python -m pip install -r requirements.txt
+
+reconcile_custom_node_requirements() {
+    local custom_nodes_dir="$COMFYUI_DIR/custom_nodes"
+    local manifest
+    local manifest_hash
+    local node_name
+    local recorded_hash
+    local stamp_file
+    local stamp_name
+
+    [ -d "$custom_nodes_dir" ] || return 0
+
+    mkdir -p "$CUSTOM_NODE_REQUIREMENTS_STAMP_DIR"
+
+    shopt -s nullglob
+    for manifest in "$custom_nodes_dir"/*/requirements.txt; do
+        manifest_hash="$(sha256_file "$manifest")"
+        stamp_name="$(custom_node_manifest_stamp_name "$manifest")"
+        stamp_file="$CUSTOM_NODE_REQUIREMENTS_STAMP_DIR/${stamp_name}.sha256"
+        node_name="$(basename "$(dirname "$manifest")")"
+        recorded_hash=""
+
+        if [ -f "$stamp_file" ]; then
+            recorded_hash="$(<"$stamp_file")"
+        fi
+
+        if [ "$recorded_hash" = "$manifest_hash" ]; then
+            continue
+        fi
+
+        echo "Installing dependencies for custom node '$node_name' from $manifest"
+        if python -m pip install -r "$manifest"; then
+            printf '%s\n' "$manifest_hash" > "$stamp_file"
+        else
+            echo "ERROR: failed to install dependencies for custom node '$node_name' from $manifest" >&2
+            exit 1
+        fi
+    done
+    shopt -u nullglob
+}
+
+reconcile_custom_node_requirements
 
 clean_args=()
 has_attention_flag=0
