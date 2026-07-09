@@ -34,6 +34,11 @@ That is the practical tradeoff:
 
 ## Supported target
 
+
+> [!NOTE]
+> Tested on CachyOS. Other distros might encounter errors specific to those distros.
+> Feel free to send a PR if you think you have a working version of the script that works for a specific distro.
+
 - OS: Linux `x86_64`
 - GPU: NVIDIA
 - Driver: working proprietary driver with CUDA available to PyTorch
